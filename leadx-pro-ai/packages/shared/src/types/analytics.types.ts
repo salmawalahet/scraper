@@ -1,0 +1,57 @@
+// ============================================
+// Analytics Types
+// ============================================
+
+export interface IDashboardStats {
+  totalLeads: number;
+  verifiedEmails: number;
+  runningJobs: number;
+  completedJobs: number;
+  totalExports: number;
+  successRate: number;
+  topCategories: ICategoryCount[];
+}
+
+export interface ICategoryCount {
+  category: string;
+  count: number;
+}
+
+export interface IDailyMetric {
+  date: string;
+  count: number;
+}
+
+export interface ILeadTrend {
+  date: string;
+  totalLeads: number;
+  verifiedLeads: number;
+}
+
+export interface IJobAnalytics {
+  totalJobs: number;
+  completedJobs: number;
+  failedJobs: number;
+  averageLeadsPerJob: number;
+  averageDuration: number;
+}
+
+export interface IExportAnalytics {
+  totalExports: number;
+  totalDownloads: number;
+  byFormat: { format: string; count: number }[];
+}
+
+export interface IQualityDistribution {
+  high: number;
+  medium: number;
+  low: number;
+}
+
+export interface IAnalyticsOverview {
+  dashboard: IDashboardStats;
+  leadTrends: ILeadTrend[];
+  jobAnalytics: IJobAnalytics;
+  exportAnalytics: IExportAnalytics;
+  qualityDistribution: IQualityDistribution;
+}

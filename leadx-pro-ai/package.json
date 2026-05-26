@@ -1,0 +1,31 @@
+{
+  "name": "leadx-pro-ai",
+  "version": "1.0.0",
+  "description": "LeadX Pro AI – Lead Intelligence & Business Data Platform",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=apps/backend",
+    "dev:frontend": "npm run dev --workspace=apps/frontend",
+    "dev:workers": "npm run dev --workspace=apps/workers",
+    "build:backend": "npm run build --workspace=apps/backend",
+    "build:frontend": "npm run build --workspace=apps/frontend",
+    "build:shared": "npm run build --workspace=packages/shared",
+    "build:all": "npm run build:shared && npm run build:backend && npm run build:frontend",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write \"**/*.{ts,tsx,json,css,md}\"",
+    "db:migrate": "npm run migrate --workspace=apps/backend",
+    "db:seed": "npm run seed --workspace=apps/backend",
+    "db:backup": "bash apps/backend/scripts/backup-db.sh",
+    "db:setup-cron": "bash apps/backend/scripts/setup-cron.sh"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "author": "LeadX Pro AI Team",
+  "license": "UNLICENSED"
+}

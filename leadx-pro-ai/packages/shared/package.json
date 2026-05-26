@@ -1,0 +1,15 @@
+{
+  "name": "@leadx/shared",
+  "version": "1.0.0",
+  "description": "Shared types, constants, and utilities for LeadX Pro AI",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}
