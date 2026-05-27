@@ -56,6 +56,7 @@ export enum ActivityAction {
   LEAD_EXPORTED = 'lead_exported',
   LEAD_DELETED = 'lead_deleted',
   LEAD_ARCHIVED = 'lead_archived',
+  LEAD_ENRICHED = 'lead_enriched',
   EXPORT_CREATED = 'export_created',
   EXPORT_DOWNLOADED = 'export_downloaded',
   SETTINGS_UPDATED = 'settings_updated',

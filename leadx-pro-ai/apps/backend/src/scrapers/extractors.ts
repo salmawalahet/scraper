@@ -35,9 +35,24 @@ export function extractPhones(text: string): string[] {
   const matches = text.match(REGEX_PATTERNS.PHONE) || [];
   return [...new Set(
     matches
-      .map((p) => p.replace(/[\s.-]/g, '').trim())
-      .filter((p) => p.length >= 7 && p.length <= 15) // Valid phone length
-      .filter((p) => !/^(0{5,}|1{5,}|2{5,})/.test(p)) // Not repeated digits
+      .map((p) => p.trim())
+      // Skip scientific notation or obvious floating point numbers (like 8.4024E+11)
+      .filter((p) => !/[eE]\+/.test(p) && !/\d+\.\d+/.test(p))
+      .map((p) => p.replace(/[\s.()-]/g, '').trim())
+      .filter((p) => {
+        // Find the matching unformatted version in the original matched strings
+        const original = matches.find((m) => m.replace(/[\s.()-]/g, '').trim() === p) || '';
+        const isFormatted = /[\s.()-]/.test(original);
+
+        // If it's a short sequence (7 to 9 digits), it must have formatting to be trusted
+        if (p.length >= 7 && p.length <= 9) {
+          return isFormatted;
+        }
+
+        // Long sequences (10 to 15 digits) are highly likely to be real phone numbers even if unformatted
+        return p.length >= 10 && p.length <= 15;
+      })
+      .filter((p) => !/^(0{5,}|1{5,}|2{5,}|3{5,}|4{5,}|5{5,}|6{5,}|7{5,}|8{5,}|9{5,})/.test(p)) // Not repeated digits
   )];
 }
 
@@ -98,18 +113,46 @@ export function extractAddress(text: string): string | null {
   // Clean the text first
   const cleanText = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
-  // Common address patterns
-  const addressPatterns = [
-    // US-style: 123 Main St, City, ST 12345
-    /\d{1,5}\s[\w\s]+(?:Street|St|Avenue|Ave|Boulevard|Blvd|Drive|Dr|Lane|Ln|Road|Rd|Way|Court|Ct|Circle|Cir|Place|Pl)[\s,]+[\w\s]+,?\s*[A-Z]{2}\s*\d{5}(?:-\d{4})?/i,
-    // General: Number + Street + City + State/Country
-    /\d{1,5}\s[\w\s]{3,30}(?:,\s*[\w\s]+){1,3}/,
+  // Address indicators to validate generic matches
+  const addressKeywords = [
+    /\b(?:street|st|avenue|ave|boulevard|blvd|drive|dr|lane|ln|road|rd|way|court|ct|circle|cir|place|pl|broadway|square|sq|highway|hwy|suite|ste|floor|fl|building|bldg|p\.?o\.?\s*box)\b/i,
+    /\b(?:alberta|bc|manitoba|nb|nl|ns|nt|nunavut|ontario|pe|qc|sk|yt)\b/i,
+    /\b(?:vic|nsw|qld|wa|sa|tas|act|nt)\b\s+\d{4}\b/i,
+    /\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/,
+    /\b[A-Z][0-9][A-Z]\s*[0-9][A-Z][0-9]\b/i,
+    /\b[A-Z]{1,2}[0-9][A-Z0-9]?\s?[0-9][A-Z]{2}\b/i
   ];
 
-  for (const pattern of addressPatterns) {
+  // Specific high-confidence address patterns
+  const highConfidencePatterns = [
+    // US-style: 123 Main St, City, ST 12345
+    /\d{1,5}\s[\w\s.-]+(?:Street|St|Avenue|Ave|Boulevard|Blvd|Drive|Dr|Lane|Ln|Road|Rd|Way|Court|Ct|Circle|Cir|Place|Pl|Broadway)[\s,]+[\w\s.-]+,?\s*[A-Z]{2}\s*\d{5}(?:-\d{4})?/i,
+    // PO Box: PO Box 123, City, ST 12345
+    /(?:P\.?O\.?\s*Box)\s+\d+[\s,]+[\w\s.-]+,?\s*[A-Z]{2}\s*\d{5}/i,
+  ];
+
+  // First, check if any high-confidence pattern matches
+  for (const pattern of highConfidencePatterns) {
     const match = cleanText.match(pattern);
     if (match) {
       return match[0].trim().substring(0, 500);
+    }
+  }
+
+  // Next, fall back to general pattern but validate with address keywords
+  // Number + Street/City + optional commas
+  const generalPattern = /\d{1,5}\s[\w\s.-]{3,50}(?:,\s*[\w\s.-]+){1,4}/;
+  const match = cleanText.match(generalPattern);
+  if (match) {
+    const candidate = match[0].trim();
+    // Validate that the candidate contains at least one address keyword/indicator
+    const hasIndicator = addressKeywords.some((kw) => kw.test(candidate));
+    if (hasIndicator) {
+      // Make sure it doesn't look like conversational sentences (skip if it contains common non-address words)
+      const conversationalWords = /\b(?:experience|skills|salary|team|benefits|responsibilities|qualification|requirements|join|work|full-time|part-time|scientists|members|partnerships|visibility|sponsor|matching|premium|coaching|hands|events)\b/i;
+      if (!conversationalWords.test(candidate)) {
+        return candidate.substring(0, 500);
+      }
     }
   }
 

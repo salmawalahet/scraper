@@ -4,6 +4,7 @@ import { env } from './config/environment';
 import { socketService } from './config/socket';
 import { createScrapeWorker } from './workers/scrape.worker';
 import { createExportWorker } from './workers/export.worker';
+import { createAiEnrichmentWorker } from './workers/ai-enrichment.worker';
 import { logger } from './utils/logger';
 
 const server = http.createServer(app);
@@ -14,6 +15,7 @@ socketService.initialize(server);
 // Start workers
 const scrapeWorker = createScrapeWorker();
 const exportWorker = createExportWorker();
+const aiEnrichmentWorker = createAiEnrichmentWorker();
 
 logger.info('BullMQ workers started');
 
@@ -22,7 +24,7 @@ server.listen(env.PORT, () => {
   logger.info(`🚀 LeadX Pro AI server running on port ${env.PORT}`);
   logger.info(`📡 Environment: ${env.NODE_ENV}`);
   logger.info(`🔌 Socket.IO: enabled`);
-  logger.info(`⚙️  Workers: scrape + export active`);
+  logger.info(`⚙️  Workers: scrape + export + ai-enrichment active`);
 });
 
 // Graceful shutdown
@@ -35,6 +37,7 @@ const gracefulShutdown = async (signal: string) => {
     try {
       await scrapeWorker.close();
       await exportWorker.close();
+      await aiEnrichmentWorker.close();
       logger.info('Workers closed');
     } catch (error) {
       logger.error('Error closing workers', { error });

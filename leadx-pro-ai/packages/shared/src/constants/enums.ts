@@ -39,6 +39,7 @@ export const QUEUE_NAMES = {
   SCRAPE: 'scrape-queue',
   EXPORT: 'export-queue',
   RETRY: 'retry-queue',
+  AI_ENRICHMENT: 'ai-enrichment-queue',
 } as const;
 
 export const DISPOSABLE_EMAIL_DOMAINS = [

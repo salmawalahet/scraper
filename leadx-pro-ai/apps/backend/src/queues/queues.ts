@@ -68,16 +68,32 @@ export const retryQueue = new Queue(QUEUE_NAMES.RETRY, {
   },
 });
 
-export const retryQueueEvents = new QueueEvents(QUEUE_NAMES.RETRY, {
+// ============================================
+// AI Enrichment Queue
+// ============================================
+export const aiEnrichmentQueue = new Queue(QUEUE_NAMES.AI_ENRICHMENT, {
+  connection: bullMQConnection,
+  defaultJobOptions: {
+    ...defaultJobOptions,
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 5000,
+    },
+  },
+});
+
+export const aiEnrichmentQueueEvents = new QueueEvents(QUEUE_NAMES.AI_ENRICHMENT, {
   connection: bullMQConnection,
 });
 
-retryQueueEvents.on('completed', ({ jobId }) => {
-  logger.info(`Retry job ${jobId} completed`);
+aiEnrichmentQueueEvents.on('completed', ({ jobId }) => {
+  logger.info(`AI Enrichment job ${jobId} completed`);
 });
 
-retryQueueEvents.on('failed', ({ jobId, failedReason }) => {
-  logger.error(`Retry job ${jobId} failed: ${failedReason}`);
+aiEnrichmentQueueEvents.on('failed', ({ jobId, failedReason }) => {
+  logger.error(`AI Enrichment job ${jobId} failed: ${failedReason}`);
 });
 
-export const allQueues = { scrapeQueue, exportQueue, retryQueue };
+export const allQueues = { scrapeQueue, exportQueue, retryQueue, aiEnrichmentQueue };
+

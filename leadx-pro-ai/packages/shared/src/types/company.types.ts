@@ -50,6 +50,9 @@ export interface IScrapedCompany {
   website_status: WebsiteStatus;
   lead_priority: LeadPriority;
   tags: string[];
+  ai_summary: string | null;
+  cold_email_draft: string | null;
+  ai_enriched_at: Date | string | null;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
@@ -73,6 +76,9 @@ export interface ICreateCompany {
   website_status?: WebsiteStatus;
   lead_priority?: LeadPriority;
   tags?: string[];
+  ai_summary?: string | null;
+  cold_email_draft?: string | null;
+  ai_enriched_at?: Date | string | null;
 }
 
 export interface ILeadFilters {

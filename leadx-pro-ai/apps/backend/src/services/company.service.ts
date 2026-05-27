@@ -245,6 +245,24 @@ export class CompanyService {
   }
 
   /**
+   * Update AI enrichment data
+   */
+  async updateAiEnrichment(
+    id: number,
+    summary: string | null,
+    coldEmail: string | null,
+    tags: string[],
+    priority: LeadPriority,
+  ): Promise<void> {
+    await db.execute(
+      `UPDATE scraped_companies
+       SET ai_summary = ?, cold_email_draft = ?, tags = ?, lead_priority = ?, ai_enriched_at = NOW()
+       WHERE id = ?`,
+      [summary, coldEmail, JSON.stringify(tags), priority, id],
+    );
+  }
+
+  /**
    * Batch update verification for multiple leads
    */
   async batchUpdateVerification(

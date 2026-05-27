@@ -10,5 +10,6 @@ router.get('/', (req, res) => leadController.search(req, res));
 router.get('/categories', (req, res) => leadController.getCategories(req, res));
 router.get('/:id', (req, res) => leadController.getById(req, res));
 router.post('/bulk', (req, res) => leadController.bulkAction(req, res));
+router.post('/:id/ai-enrich', (req, res) => leadController.aiEnrich(req, res));
 
 export default router;

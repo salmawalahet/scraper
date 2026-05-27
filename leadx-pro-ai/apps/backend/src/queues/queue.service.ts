@@ -1,4 +1,4 @@
-import { scrapeQueue, exportQueue, retryQueue } from './queues';
+import { scrapeQueue, exportQueue, retryQueue, aiEnrichmentQueue } from './queues';
 import { ICreateJob, ExportFormat, ILeadFilters, QUEUE_NAMES } from '@leadx/shared';
 import { queueLogger as logger } from '../utils/logger';
 
@@ -30,6 +30,19 @@ export class QueueService {
       { jobId: `export-${exportId}` },
     );
     logger.info(`Added export job to queue`, { exportId, queueJobId: job.id });
+    return job;
+  }
+
+  /**
+   * Add an AI enrichment job to the queue
+   */
+  async addAiEnrichmentJob(companyId: number, senderName?: string) {
+    const job = await aiEnrichmentQueue.add(
+      `ai-enrich-${companyId}`,
+      { companyId, senderName },
+      { jobId: `ai-enrich-${companyId}` }
+    );
+    logger.info(`Added AI enrichment job to queue`, { companyId, queueJobId: job.id });
     return job;
   }
 
@@ -93,13 +106,14 @@ export class QueueService {
    * Get all queue stats
    */
   async getAllQueueStats() {
-    const [scrape, exportQ, retry] = await Promise.all([
+    const [scrape, exportQ, retry, aiEnrich] = await Promise.all([
       this.getQueueStats(QUEUE_NAMES.SCRAPE),
       this.getQueueStats(QUEUE_NAMES.EXPORT),
       this.getQueueStats(QUEUE_NAMES.RETRY),
+      this.getQueueStats(QUEUE_NAMES.AI_ENRICHMENT),
     ]);
 
-    return { scrape, export: exportQ, retry };
+    return { scrape, export: exportQ, retry, aiEnrich };
   }
 
   /**
@@ -135,6 +149,8 @@ export class QueueService {
         return exportQueue;
       case QUEUE_NAMES.RETRY:
         return retryQueue;
+      case QUEUE_NAMES.AI_ENRICHMENT:
+        return aiEnrichmentQueue;
       default:
         return null;
     }

@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { companyService } from '../services/company.service';
 import { activityService } from '../services/activity.service';
+import { queueService } from '../queues/queue.service';
+import { isAIEnabled } from '../services/ai/aiClient';
 import { ActivityAction, EntityType, HTTP_STATUS, ILeadFilters } from '@leadx/shared';
 import { logger } from '../utils/logger';
 
@@ -99,6 +101,55 @@ export class LeadController {
     } catch (error) {
       logger.error('Get categories failed', { error });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, error: 'Failed to get categories' });
+    }
+  }
+
+  async aiEnrich(req: Request, res: Response): Promise<void> {
+    try {
+      if (!isAIEnabled()) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'AI features are disabled. Please configure your OpenAI API Key and enable AI in your settings.',
+        });
+        return;
+      }
+
+      const companyId = parseInt(req.params.id);
+      const { senderName } = req.body;
+
+      const lead = await companyService.findById(companyId);
+      if (!lead) {
+        res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Lead not found' });
+        return;
+      }
+
+      // Add enrichment job to the BullMQ queue
+      const job = await queueService.addAiEnrichmentJob(companyId, senderName || 'Sales Team');
+
+      // Log the activity
+      await activityService.log({
+        userId: req.user!.userId,
+        action: ActivityAction.LEAD_ENRICHED,
+        entityType: EntityType.LEAD,
+        entityId: companyId,
+        details: { companyName: lead.company_name, jobId: job.id },
+        ipAddress: req.ip,
+      });
+
+      res.json({
+        success: true,
+        message: 'Lead AI enrichment queued successfully',
+        data: {
+          jobId: job.id,
+          companyId,
+        },
+      });
+    } catch (error: any) {
+      logger.error('Lead AI enrichment queueing failed', { error: error.message });
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: 'Failed to queue Lead AI enrichment',
+      });
     }
   }
 }

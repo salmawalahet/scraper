@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
+import { socketClient } from '../services/socket';
 import { leadsApi, exportsApi } from '../services/api';
 import {
   Search, Filter, Download, Trash2, ChevronLeft, ChevronRight,
   Mail, Phone, Globe, MapPin, X, ExternalLink,
   CheckCircle2, AlertCircle, Clock, Loader2, Eye,
+  Sparkles, Copy, Check,
 } from 'lucide-react';
 
 function Linkedin(props: React.SVGProps<SVGSVGElement>) {
@@ -31,6 +33,9 @@ interface Lead {
   company_size: string; source_url: string; verification_status: string;
   confidence_score: number; website_status: string; lead_priority: string;
   tags: string[]; created_at: string;
+  ai_summary: string | null;
+  cold_email_draft: string | null;
+  ai_enriched_at: string | null;
 }
 
 const priorityColors: Record<string, string> = {
@@ -57,6 +62,47 @@ export default function Leads() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<Record<string, string>>({});
+  const [isEnriching, setIsEnriching] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyEmail = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleAiEnrich = async (id: number) => {
+    setIsEnriching(true);
+    try {
+      await leadsApi.aiEnrich(id);
+      let attempts = 0;
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await leadsApi.getById(id);
+          const updatedLead = res.data?.data?.lead;
+          if (updatedLead && updatedLead.ai_enriched_at) {
+            clearInterval(interval);
+            setSelectedLead(updatedLead);
+            setLeads((prev) => prev.map((l) => (l.id === id ? updatedLead : l)));
+            setIsEnriching(false);
+          } else if (attempts >= 15) {
+            clearInterval(interval);
+            setIsEnriching(false);
+            alert('AI Enrichment is taking longer than expected. Please check settings or try again.');
+          }
+        } catch (err: any) {
+          clearInterval(interval);
+          setIsEnriching(false);
+          console.error(err);
+        }
+      }, 3000);
+    } catch (err: any) {
+      setIsEnriching(false);
+      const errMsg = err.response?.data?.error || err.message || 'Failed to queue AI Enrichment';
+      alert(errMsg);
+    }
+  };
 
   const loadLeads = useCallback(async () => {
     setLoading(true);
@@ -71,6 +117,23 @@ export default function Leads() {
   }, [page, limit, search, filters]);
 
   useEffect(() => { loadLeads(); }, [loadLeads]);
+
+  // Listen for AI enrichment errors
+  useEffect(() => {
+    const handleError = (data: { leadId: number; error: string }) => {
+      if (selectedLead && data.leadId === selectedLead.id) {
+        alert(`AI Enrichment Error: ${data.error}`);
+      }
+    };
+    socketClient.on('lead:ai-enriched:error', handleError);
+    return () => {
+      // Cleanup listener on unmount
+      // Assuming socketClient.off method exists
+      // If not, we cannot remove; but we'll attempt
+      // @ts-ignore
+      socketClient.off && socketClient.off('lead:ai-enriched:error', handleError);
+    };
+  }, [selectedLead]);
 
   const totalPages = Math.ceil(total / limit);
 
@@ -367,6 +430,109 @@ export default function Leads() {
                   </div>
                 </div>
               )}
+
+              {/* AI Insights & Cold Outreach Section */}
+              <div className="border-t border-border pt-4 mt-2 space-y-4">
+                <div className="flex items-center gap-2 text-primary">
+                  <Sparkles className="h-4 w-4 shrink-0 animate-pulse text-indigo-400" />
+                  <span className="text-xs font-bold uppercase tracking-wider">AI Lead Intelligence</span>
+                </div>
+
+                {isEnriching ? (
+                  <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3 animate-pulse">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      <span>Enriching lead intelligence...</span>
+                    </div>
+                    <div className="h-3 bg-muted rounded-full w-full"></div>
+                    <div className="h-3 bg-muted rounded-full w-5/6"></div>
+                    <div className="h-3 bg-muted rounded-full w-4/5"></div>
+                  </div>
+                ) : selectedLead.ai_enriched_at && !selectedLead.ai_summary ? (
+                  <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4 space-y-3 animate-fade-in">
+                    <div className="flex items-start gap-2.5 text-xs text-red-400 font-medium">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-red-500 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-red-400">Enrichment Failed (API Quota Exceeded)</p>
+                        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                          The request was sent successfully but your OpenAI key returned a **429 Quota Exceeded** error. Please check your OpenAI billing plan.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleAiEnrich(selectedLead.id)}
+                      disabled={isEnriching}
+                      className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted text-muted-foreground hover:text-foreground transition-all duration-200"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-indigo-400" /> Try Again
+                    </button>
+                  </div>
+                ) : selectedLead.ai_summary ? (
+                  <div className="space-y-4">
+                    {/* Summary */}
+                    <div className="rounded-lg border border-border bg-indigo-500/5 p-4 space-y-2">
+                      <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">Business Summary</p>
+                      <p className="text-sm font-normal leading-relaxed text-foreground/90">{selectedLead.ai_summary}</p>
+                    </div>
+
+                    {/* Cold Outreach */}
+                    {selectedLead.cold_email_draft && (
+                      <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Personalized Cold Outreach</p>
+                          <button
+                            onClick={() => handleCopyEmail(selectedLead.cold_email_draft!)}
+                            className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                          >
+                            {copied ? (
+                              <>
+                                <Check className="h-3.5 w-3.5 text-emerald-400" />
+                                <span className="text-emerald-400 font-semibold">Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-3.5 w-3.5" />
+                                <span>Copy Draft</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <textarea
+                            readOnly
+                            value={selectedLead.cold_email_draft}
+                            rows={6}
+                            className="w-full text-xs font-mono bg-muted/40 text-muted-foreground border border-border rounded-md p-3 outline-none resize-none leading-relaxed"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleAiEnrich(selectedLead.id)}
+                        disabled={isEnriching}
+                        className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted text-muted-foreground hover:text-foreground transition-all duration-200"
+                      >
+                        <Sparkles className="h-3.5 w-3.5 text-indigo-400" /> Re-generate Insights
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-border border-dashed p-6 text-center space-y-3">
+                    <p className="text-xs text-muted-foreground leading-normal">
+                      Get instant business model analysis, value proposition, and highly customized cold email drafts.
+                    </p>
+                    <button
+                      onClick={() => handleAiEnrich(selectedLead.id)}
+                      disabled={isEnriching}
+                      className="w-full flex items-center justify-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-3 text-xs shadow-md shadow-indigo-600/10 hover:shadow-indigo-500/20 active:scale-95 transition-all duration-150"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" /> Generate AI Insights
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {selectedLead.source_url && (
                 <a href={selectedLead.source_url} target="_blank" rel="noopener noreferrer"

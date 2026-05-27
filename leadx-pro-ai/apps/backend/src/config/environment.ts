@@ -58,6 +58,13 @@ const envSchema = z.object({
   HUBSPOT_API_KEY: z.string().default(''),
   ZOHO_API_KEY: z.string().default(''),
   WEBHOOK_SECRET: z.string().default(''),
+
+  // AI Configuration
+  OPENAI_API_KEY: z.string().default(''),
+  OPENROUTER_API_KEY: z.string().default(''),
+  AI_MODEL: z.string().default(''),
+  AI_BASE_URL: z.string().default(''),
+  AI_ENABLED: z.string().default('false'),
 });
 
 const parsed = envSchema.safeParse(process.env);

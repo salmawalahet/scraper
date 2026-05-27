@@ -135,6 +135,7 @@ export const leadsApi = {
   bulkAction: (data: { ids: number[]; action: string; data?: Record<string, unknown> }) =>
     api.post('/leads/bulk', data),
   getCategories: () => api.get('/leads/categories'),
+  aiEnrich: (id: number, senderName?: string) => api.post(`/leads/${id}/ai-enrich`, { senderName }),
 };
 
 // Exports
