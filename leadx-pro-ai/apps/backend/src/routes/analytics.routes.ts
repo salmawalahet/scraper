@@ -16,3 +16,4 @@ router.get('/query-wise', (req, res) => analyticsController.getQueryWiseStats(re
 router.get('/query-wise/:jobId/export', (req, res) => analyticsController.exportQueryWise(req, res));
 
 export default router;
+

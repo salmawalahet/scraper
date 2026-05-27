@@ -22,6 +22,24 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
+// Variables to manage queued requests during token refresh
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (err: any) => void;
+}> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (token) {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 // Response interceptor — handle token refresh
 api.interceptors.response.use(
   (response) => response,
@@ -29,7 +47,22 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && error.response?.data?.code === 'TOKEN_EXPIRED' && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({
+            resolve: (token: string) => {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+              resolve(api(originalRequest));
+            },
+            reject: (err: any) => {
+              reject(err);
+            },
+          });
+        });
+      }
+
       originalRequest._retry = true;
+      isRefreshing = true;
 
       try {
         const tokens = localStorage.getItem('tokens');
@@ -42,8 +75,15 @@ api.interceptors.response.use(
         localStorage.setItem('tokens', JSON.stringify(newTokens));
 
         originalRequest.headers.Authorization = `Bearer ${newTokens.accessToken}`;
+
+        processQueue(null, newTokens.accessToken);
+        isRefreshing = false;
+
         return api(originalRequest);
       } catch (refreshError) {
+        processQueue(refreshError, null);
+        isRefreshing = false;
+
         localStorage.removeItem('tokens');
         localStorage.removeItem('user');
         window.location.href = '/login';
@@ -119,3 +159,4 @@ export const analyticsApi = {
   getQueryWiseStats: () => api.get('/analytics/query-wise'),
   exportQueryWise: (jobId: number) => api.get(`/analytics/query-wise/${jobId}/export`, { responseType: 'blob' }),
 };
+

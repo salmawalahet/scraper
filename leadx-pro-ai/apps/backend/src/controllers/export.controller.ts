@@ -14,7 +14,11 @@ export class ExportController {
       const userId = req.user!.userId;
       const { format, filters, leadIds, jobId } = req.body;
 
+<<<<<<< HEAD
       // Scope filters to job_id if jobId is provided
+=======
+      // Build effective filters — if jobId is provided, scope to that job
+>>>>>>> main
       const effectiveFilters = { ...filters };
       if (jobId) {
         effectiveFilters.jobId = jobId;
@@ -29,7 +33,7 @@ export class ExportController {
         totalRecords = result.total;
       }
 
-      // Create export record
+      // Create export record (with job_id so we can show the query name)
       const exportId = await exportService.create({
         userId,
         jobId: jobId || null,

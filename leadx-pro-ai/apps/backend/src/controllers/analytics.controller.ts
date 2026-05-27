@@ -68,12 +68,19 @@ export class AnalyticsController {
     }
   }
 
+<<<<<<< HEAD
+=======
+  /**
+   * Get query-wise (per-job) scraped details
+   */
+>>>>>>> main
   async getQueryWiseStats(req: Request, res: Response): Promise<void> {
     try {
       const stats = await analyticsService.getQueryWiseStats(req.user!.userId);
       res.json({ success: true, data: stats });
     } catch (error) {
       logger.error('Get query-wise stats failed', { error });
+<<<<<<< HEAD
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, error: 'Failed to load stats' });
     }
   }
@@ -104,6 +111,42 @@ export class AnalyticsController {
           return `"${s.replace(/"/g, '""')}"`;
         }
         return s;
+=======
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, error: 'Failed to load query-wise stats' });
+    }
+  }
+
+  /**
+   * Export leads for a specific scrape job (query-wise export) as CSV download
+   */
+  async exportQueryWise(req: Request, res: Response): Promise<void> {
+    try {
+      const jobId = parseInt(req.params.jobId);
+      if (!jobId) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Invalid job ID' });
+        return;
+      }
+
+      const leads = await companyService.findByJobId(jobId, 100000);
+
+      if (leads.length === 0) {
+        res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'No leads found for this job' });
+        return;
+      }
+
+      // Build CSV content in-memory
+      const headers = [
+        'Company Name', 'Email', 'Phone', 'WhatsApp', 'Website', 'LinkedIn',
+        'Facebook', 'Address', 'Category', 'Company Size', 'Source URL',
+        'Verification Status', 'Confidence Score', 'Website Status', 'Lead Priority',
+      ];
+
+      const escapeCsv = (str: string): string => {
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+>>>>>>> main
       };
 
       const rows = leads.map((lead) => [
@@ -121,6 +164,7 @@ export class AnalyticsController {
         escapeCsv(lead.verification_status),
         String(lead.confidence_score),
         escapeCsv(lead.website_status),
+<<<<<<< HEAD
         escapeCsv(lead.lead_priority)
       ].join(','));
 
@@ -131,6 +175,18 @@ export class AnalyticsController {
       res.status(HTTP_STATUS.OK).send(csvContent);
     } catch (error) {
       logger.error('Export query-wise leads failed', { error });
+=======
+        escapeCsv(lead.lead_priority),
+      ].join(','));
+
+      const csv = '\ufeff' + [headers.join(','), ...rows].join('\n');
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="job_${jobId}_leads.csv"`);
+      res.send(csv);
+    } catch (error) {
+      logger.error('Export query-wise failed', { error });
+>>>>>>> main
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, error: 'Failed to export leads' });
     }
   }

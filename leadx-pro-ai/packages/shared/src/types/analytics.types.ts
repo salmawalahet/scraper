@@ -48,6 +48,25 @@ export interface IQualityDistribution {
   low: number;
 }
 
+export interface IQueryWiseStat {
+  id: number;
+  name: string;
+  search_query: string | null;
+  target_url: string;
+  status: string;
+  created_at: string;
+  total_found: number;
+  total_verified: number;
+  unique_leads: number;
+  emails_count: number;
+  phones_count: number;
+  websites_count: number;
+  linkedin_count: number;
+  facebook_count: number;
+  whatsapp_count: number;
+  duplicates_blocked: number;
+}
+
 export interface IAnalyticsOverview {
   dashboard: IDashboardStats;
   leadTrends: ILeadTrend[];

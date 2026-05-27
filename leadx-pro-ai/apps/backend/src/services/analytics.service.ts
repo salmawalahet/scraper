@@ -8,6 +8,7 @@ import {
   IExportAnalytics,
   IQualityDistribution,
   ICategoryCount,
+  IQueryWiseStat,
 } from '@leadx/shared';
 import { logger } from '../utils/logger';
 
@@ -221,11 +222,19 @@ export class AnalyticsService {
   }
 
   /**
+<<<<<<< HEAD
    * Get query-wise lead intelligence statistics
    */
   async getQueryWiseStats(userId: number): Promise<any[]> {
     const cacheKey = `analytics:query_wise:${userId}`;
     const cached = await cache.get<any[]>(cacheKey);
+=======
+   * Get query-wise (per-job) scraped details
+   */
+  async getQueryWiseStats(userId: number): Promise<IQueryWiseStat[]> {
+    const cacheKey = `analytics:query_wise:${userId}`;
+    const cached = await cache.get<IQueryWiseStat[]>(cacheKey);
+>>>>>>> main
     if (cached) return cached;
 
     const [rows] = await db.query<RowDataPacket[]>(
@@ -238,6 +247,10 @@ export class AnalyticsService {
          sj.created_at,
          sj.total_found,
          sj.total_verified,
+<<<<<<< HEAD
+=======
+         COUNT(sc.id) as unique_leads,
+>>>>>>> main
          SUM(CASE WHEN sc.email IS NOT NULL AND sc.email != '' THEN 1 ELSE 0 END) as emails_count,
          SUM(CASE WHEN sc.phone IS NOT NULL AND sc.phone != '' THEN 1 ELSE 0 END) as phones_count,
          SUM(CASE WHEN sc.website IS NOT NULL AND sc.website != '' THEN 1 ELSE 0 END) as websites_count,
@@ -249,24 +262,43 @@ export class AnalyticsService {
        WHERE sj.user_id = ? AND sj.deleted_at IS NULL
        GROUP BY sj.id
        ORDER BY sj.created_at DESC`,
+<<<<<<< HEAD
       [userId]
     );
 
     const stats = rows.map((r) => ({
+=======
+      [userId],
+    );
+
+    const stats: IQueryWiseStat[] = rows.map((r) => ({
+>>>>>>> main
       id: Number(r.id),
       name: r.name,
       search_query: r.search_query,
       target_url: r.target_url,
       status: r.status,
+<<<<<<< HEAD
       created_at: r.created_at ? (r.created_at instanceof Date ? r.created_at.toISOString() : new Date(r.created_at).toISOString()) : new Date().toISOString(),
       total_found: Number(r.total_found) || 0,
       total_verified: Number(r.total_verified) || 0,
+=======
+      created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+      total_found: Number(r.total_found) || 0,
+      total_verified: Number(r.total_verified) || 0,
+      unique_leads: Number(r.unique_leads) || 0,
+>>>>>>> main
       emails_count: Number(r.emails_count) || 0,
       phones_count: Number(r.phones_count) || 0,
       websites_count: Number(r.websites_count) || 0,
       linkedin_count: Number(r.linkedin_count) || 0,
       facebook_count: Number(r.facebook_count) || 0,
       whatsapp_count: Number(r.whatsapp_count) || 0,
+<<<<<<< HEAD
+=======
+      // duplicates_blocked = what the scraper found minus what actually got stored (INSERT IGNORE skips duplicates)
+      duplicates_blocked: Math.max(0, (Number(r.total_found) || 0) - (Number(r.unique_leads) || 0)),
+>>>>>>> main
     }));
 
     await cache.set(cacheKey, stats, this.CACHE_TTL);
