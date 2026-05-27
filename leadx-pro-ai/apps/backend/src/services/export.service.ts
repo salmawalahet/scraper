@@ -97,7 +97,7 @@ export class ExportService {
     userId: number,
     page = 1,
     limit = 25,
-  ): Promise<{ exports: IExport[]; total: number }> {
+  ): Promise<{ exports: (IExport & { job_name?: string; search_query?: string })[]; total: number }> {
     const offset = (page - 1) * limit;
 
     const [countRows] = await db.query<RowDataPacket[]>(
@@ -105,14 +105,21 @@ export class ExportService {
       [userId],
     );
 
-    const [rows] = await db.query<ExportRow[]>(
-      `SELECT * FROM exports WHERE user_id = ? AND deleted_at IS NULL
-       ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    const [rows] = await db.query<RowDataPacket[]>(
+      `SELECT e.*, sj.name as job_name, sj.search_query as search_query
+       FROM exports e
+       LEFT JOIN scrape_jobs sj ON e.job_id = sj.id
+       WHERE e.user_id = ? AND e.deleted_at IS NULL
+       ORDER BY e.created_at DESC LIMIT ? OFFSET ?`,
       [userId, limit, offset],
     );
 
     return {
-      exports: rows.map((r) => this.parseRow(r)),
+      exports: rows.map((r) => ({
+        ...this.parseRow(r as unknown as ExportRow),
+        job_name: r.job_name || undefined,
+        search_query: r.search_query || undefined,
+      })),
       total: countRows[0].total,
     };
   }

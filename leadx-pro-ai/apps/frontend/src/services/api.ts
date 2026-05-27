@@ -99,7 +99,7 @@ export const leadsApi = {
 
 // Exports
 export const exportsApi = {
-  create: (data: { format: string; filters?: Record<string, unknown>; leadIds?: number[] }) =>
+  create: (data: { format: string; filters?: Record<string, unknown>; leadIds?: number[]; jobId?: number }) =>
     api.post('/exports', data),
   list: (params?: { page?: number; limit?: number }) =>
     api.get('/exports', { params }),
@@ -116,4 +116,6 @@ export const analyticsApi = {
   getExportAnalytics: () => api.get('/analytics/exports'),
   getQualityDistribution: () => api.get('/analytics/quality'),
   getRecentActivity: (limit?: number) => api.get('/analytics/activity', { params: { limit } }),
+  getQueryWiseStats: () => api.get('/analytics/query-wise'),
+  exportQueryWise: (jobId: number) => api.get(`/analytics/query-wise/${jobId}/export`, { responseType: 'blob' }),
 };

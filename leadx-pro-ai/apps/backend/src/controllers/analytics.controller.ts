@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { analyticsService } from '../services/analytics.service';
 import { activityService } from '../services/activity.service';
+import { companyService } from '../services/company.service';
 import { HTTP_STATUS } from '@leadx/shared';
 import { logger } from '../utils/logger';
 
@@ -64,6 +65,73 @@ export class AnalyticsController {
     } catch (error) {
       logger.error('Get activity failed', { error });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, error: 'Failed to load activity' });
+    }
+  }
+
+  async getQueryWiseStats(req: Request, res: Response): Promise<void> {
+    try {
+      const stats = await analyticsService.getQueryWiseStats(req.user!.userId);
+      res.json({ success: true, data: stats });
+    } catch (error) {
+      logger.error('Get query-wise stats failed', { error });
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, error: 'Failed to load stats' });
+    }
+  }
+
+  async exportQueryWise(req: Request, res: Response): Promise<void> {
+    try {
+      const jobId = parseInt(req.params.jobId);
+      if (isNaN(jobId)) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Invalid Job ID' });
+        return;
+      }
+
+      // Fetch all leads for this job
+      const result = await companyService.search({ jobId, page: 1, limit: 100000 });
+      const leads = result.data;
+
+      // Generate CSV content
+      const headers = [
+        'Company Name', 'Email', 'Phone', 'WhatsApp', 'Website', 'LinkedIn',
+        'Facebook', 'Address', 'Category', 'Company Size', 'Source URL',
+        'Verification Status', 'Confidence Score', 'Website Status', 'Lead Priority'
+      ];
+
+      const escapeCsv = (val: any) => {
+        if (val === null || val === undefined) return '';
+        const s = String(val);
+        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+          return `"${s.replace(/"/g, '""')}"`;
+        }
+        return s;
+      };
+
+      const rows = leads.map((lead) => [
+        escapeCsv(lead.company_name),
+        escapeCsv(lead.email || ''),
+        escapeCsv(lead.phone || ''),
+        escapeCsv(lead.whatsapp || ''),
+        escapeCsv(lead.website || ''),
+        escapeCsv(lead.linkedin || ''),
+        escapeCsv(lead.facebook || ''),
+        escapeCsv(lead.address || ''),
+        escapeCsv(lead.category || ''),
+        escapeCsv(lead.company_size || ''),
+        escapeCsv(lead.source_url),
+        escapeCsv(lead.verification_status),
+        String(lead.confidence_score),
+        escapeCsv(lead.website_status),
+        escapeCsv(lead.lead_priority)
+      ].join(','));
+
+      const csvContent = '\ufeff' + [headers.join(','), ...rows].join('\n');
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename=job_${jobId}_export.csv`);
+      res.status(HTTP_STATUS.OK).send(csvContent);
+    } catch (error) {
+      logger.error('Export query-wise leads failed', { error });
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, error: 'Failed to export leads' });
     }
   }
 }

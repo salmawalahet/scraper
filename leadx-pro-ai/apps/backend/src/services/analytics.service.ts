@@ -221,6 +221,59 @@ export class AnalyticsService {
   }
 
   /**
+   * Get query-wise lead intelligence statistics
+   */
+  async getQueryWiseStats(userId: number): Promise<any[]> {
+    const cacheKey = `analytics:query_wise:${userId}`;
+    const cached = await cache.get<any[]>(cacheKey);
+    if (cached) return cached;
+
+    const [rows] = await db.query<RowDataPacket[]>(
+      `SELECT
+         sj.id,
+         sj.name,
+         sj.search_query,
+         sj.target_url,
+         sj.status,
+         sj.created_at,
+         sj.total_found,
+         sj.total_verified,
+         SUM(CASE WHEN sc.email IS NOT NULL AND sc.email != '' THEN 1 ELSE 0 END) as emails_count,
+         SUM(CASE WHEN sc.phone IS NOT NULL AND sc.phone != '' THEN 1 ELSE 0 END) as phones_count,
+         SUM(CASE WHEN sc.website IS NOT NULL AND sc.website != '' THEN 1 ELSE 0 END) as websites_count,
+         SUM(CASE WHEN sc.linkedin IS NOT NULL AND sc.linkedin != '' THEN 1 ELSE 0 END) as linkedin_count,
+         SUM(CASE WHEN sc.facebook IS NOT NULL AND sc.facebook != '' THEN 1 ELSE 0 END) as facebook_count,
+         SUM(CASE WHEN sc.whatsapp IS NOT NULL AND sc.whatsapp != '' THEN 1 ELSE 0 END) as whatsapp_count
+       FROM scrape_jobs sj
+       LEFT JOIN scraped_companies sc ON sj.id = sc.job_id AND sc.deleted_at IS NULL
+       WHERE sj.user_id = ? AND sj.deleted_at IS NULL
+       GROUP BY sj.id
+       ORDER BY sj.created_at DESC`,
+      [userId]
+    );
+
+    const stats = rows.map((r) => ({
+      id: Number(r.id),
+      name: r.name,
+      search_query: r.search_query,
+      target_url: r.target_url,
+      status: r.status,
+      created_at: r.created_at ? (r.created_at instanceof Date ? r.created_at.toISOString() : new Date(r.created_at).toISOString()) : new Date().toISOString(),
+      total_found: Number(r.total_found) || 0,
+      total_verified: Number(r.total_verified) || 0,
+      emails_count: Number(r.emails_count) || 0,
+      phones_count: Number(r.phones_count) || 0,
+      websites_count: Number(r.websites_count) || 0,
+      linkedin_count: Number(r.linkedin_count) || 0,
+      facebook_count: Number(r.facebook_count) || 0,
+      whatsapp_count: Number(r.whatsapp_count) || 0,
+    }));
+
+    await cache.set(cacheKey, stats, this.CACHE_TTL);
+    return stats;
+  }
+
+  /**
    * Invalidate all analytics caches for a user
    */
   async invalidateCache(userId: number): Promise<void> {

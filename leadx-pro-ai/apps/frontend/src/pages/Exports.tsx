@@ -10,12 +10,14 @@ interface ExportItem {
   user_id: number;
   job_id: number | null;
   job_name?: string;
+  search_query?: string;
   format: string;
   file_path: string;
   file_size: number;
   total_records: number;
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   download_count: number;
+  filters?: any;
   created_at: string;
 }
 
@@ -27,6 +29,30 @@ export default function Exports() {
   const [exportFormat, setExportFormat] = useState('csv');
   const [exportTarget, setExportTarget] = useState('all'); // 'all' or specific job
   const [creating, setCreating] = useState(false);
+
+  const getExportName = (item: ExportItem) => {
+    if (item.job_name) return item.job_name;
+
+    let filters = item.filters;
+    if (typeof filters === 'string') {
+      try {
+        filters = JSON.parse(filters);
+      } catch {
+        filters = null;
+      }
+    }
+
+    if (filters) {
+      if (filters.has_email || filters.verificationStatus === 'verified') {
+        return 'Only Verified Leads';
+      }
+      if (filters.jobId) {
+        return `Job #${filters.jobId} Leads`;
+      }
+    }
+
+    return 'All Scraped Leads';
+  };
 
   useEffect(() => {
     loadExports();
@@ -213,9 +239,9 @@ export default function Exports() {
                     <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted border border-border">
                       {getFormatIcon(item.format)}
                     </div>
-                    <div>
-                      <h3 className="text-sm font-semibold truncate max-w-[150px]">
-                        Leads Export #{item.id}
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-semibold truncate max-w-[170px]" title={`${getExportName(item)} #${item.id}`}>
+                        {getExportName(item)} #{item.id}
                       </h3>
                       <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-0.5">
                         {item.format} File
@@ -224,6 +250,12 @@ export default function Exports() {
                   </div>
                   {getStatusBadge(item.status)}
                 </div>
+
+                {item.search_query && (
+                  <div className="mt-2.5 rounded-lg bg-indigo-500/5 border border-indigo-500/10 px-2.5 py-1.5 text-xs text-indigo-400 truncate">
+                    <span className="font-semibold text-indigo-300">Query: </span>{item.search_query}
+                  </div>
+                )}
 
                 <div className="mt-4 grid grid-cols-2 gap-2 text-xs border-t border-b border-border/50 py-3 my-3">
                   <div>
@@ -235,12 +267,6 @@ export default function Exports() {
                     <span className="font-semibold text-sm">{formatBytes(item.file_size)}</span>
                   </div>
                 </div>
-
-                {item.job_name && (
-                  <p className="text-[11px] text-muted-foreground truncate mb-1">
-                    Source Job: <span className="text-foreground font-medium">{item.job_name}</span>
-                  </p>
-                )}
 
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Calendar className="h-3.5 w-3.5" />
