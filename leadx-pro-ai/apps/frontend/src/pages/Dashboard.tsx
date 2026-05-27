@@ -2,12 +2,34 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { analyticsApi } from '../services/api';
 import {
   Users, Mail, Briefcase, CheckCircle2, Download, TrendingUp,
-  Activity, ArrowUpRight, ArrowDownRight, Loader2,
+  Activity, ArrowUpRight, ArrowDownRight, Loader2, Search,
+  Phone, Globe, MessageCircle, ShieldCheck,
+  ShieldAlert, Play, Clock, AlertCircle, XCircle, RotateCcw,
+  ChevronDown, ChevronUp, FileDown, Ban,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar, Legend,
+  PieChart, Pie, Cell,
 } from 'recharts';
+
+// Custom SVG icons (not in lucide-react)
+function LinkedinIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+      <rect x="2" y="9" width="4" height="12" />
+      <circle cx="4" cy="4" r="2" />
+    </svg>
+  );
+}
+
+function FacebookIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+    </svg>
+  );
+}
 
 const CHART_COLORS = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#34d399', '#fbbf24', '#f87171', '#60a5fa'];
 const DASHBOARD_POLL_INTERVAL_MS = 10000;
@@ -22,23 +44,58 @@ interface DashboardStats {
   topCategories: { category: string; count: number }[];
 }
 
+interface QueryWiseStat {
+  id: number;
+  name: string;
+  search_query: string | null;
+  target_url: string;
+  status: string;
+  created_at: string;
+  total_found: number;
+  total_verified: number;
+  unique_leads: number;
+  emails_count: number;
+  phones_count: number;
+  websites_count: number;
+  linkedin_count: number;
+  facebook_count: number;
+  whatsapp_count: number;
+  duplicates_blocked: number;
+}
+
+const statusConfig: Record<string, { color: string; icon: typeof CheckCircle2; label: string; badgeBg: string }> = {
+  pending:   { color: 'text-slate-400',   icon: Clock,        label: 'Pending',   badgeBg: 'bg-slate-400/10 border-slate-400/20' },
+  running:   { color: 'text-blue-400',    icon: Play,         label: 'Running',   badgeBg: 'bg-blue-400/10 border-blue-400/20' },
+  paused:    { color: 'text-amber-400',   icon: Clock,        label: 'Paused',    badgeBg: 'bg-amber-400/10 border-amber-400/20' },
+  completed: { color: 'text-emerald-400', icon: CheckCircle2, label: 'Completed', badgeBg: 'bg-emerald-400/10 border-emerald-400/20' },
+  failed:    { color: 'text-red-400',     icon: AlertCircle,  label: 'Failed',    badgeBg: 'bg-red-400/10 border-red-400/20' },
+  cancelled: { color: 'text-slate-500',   icon: XCircle,      label: 'Cancelled', badgeBg: 'bg-slate-500/10 border-slate-500/20' },
+  retrying:  { color: 'text-purple-400',  icon: RotateCcw,    label: 'Retrying',  badgeBg: 'bg-purple-400/10 border-purple-400/20' },
+};
+
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [trends, setTrends] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
+  const [queryStats, setQueryStats] = useState<QueryWiseStat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [querySearch, setQuerySearch] = useState('');
+  const [expandedJob, setExpandedJob] = useState<number | null>(null);
+  const [exportingJob, setExportingJob] = useState<number | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadData = useCallback(async () => {
     try {
-      const [statsRes, trendsRes, activityRes] = await Promise.all([
+      const [statsRes, trendsRes, activityRes, queryRes] = await Promise.all([
         analyticsApi.getDashboard(),
         analyticsApi.getLeadTrends(30),
         analyticsApi.getRecentActivity(10),
+        analyticsApi.getQueryWiseStats(),
       ]);
       setStats(statsRes.data.data);
       setTrends(trendsRes.data.data);
       setActivities(activityRes.data.data);
+      setQueryStats(queryRes.data.data || []);
     } catch (error) {
       console.error('Failed to load dashboard:', error);
     } finally {
@@ -59,6 +116,27 @@ export default function Dashboard() {
     };
   }, [loadData]);
 
+  const handleExportJob = async (jobId: number, jobName: string) => {
+    try {
+      setExportingJob(jobId);
+      const res = await analyticsApi.exportQueryWise(jobId);
+      // Trigger browser download
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${jobName.replace(/[^a-zA-Z0-9]/g, '_')}_leads.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+    } finally {
+      setExportingJob(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -75,6 +153,20 @@ export default function Dashboard() {
     { label: 'Total Exports', value: stats?.totalExports || 0, icon: Download, color: 'from-purple-500 to-fuchsia-500', change: '+3.4%', positive: true },
     { label: 'Success Rate', value: `${stats?.successRate || 0}%`, icon: TrendingUp, color: 'from-rose-500 to-pink-500', change: '+1.2%', positive: true },
   ];
+
+  // Aggregated totals for query-wise section
+  const totalQueryLeads = queryStats.reduce((s, q) => s + q.unique_leads, 0);
+  const totalDupsBlocked = queryStats.reduce((s, q) => s + q.duplicates_blocked, 0);
+
+  // Filtered query stats
+  const filteredQueryStats = queryStats.filter((q) => {
+    if (!querySearch) return true;
+    const term = querySearch.toLowerCase();
+    return (
+      q.name.toLowerCase().includes(term) ||
+      (q.search_query && q.search_query.toLowerCase().includes(term))
+    );
+  });
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -172,6 +264,257 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════
+          QUERY-WISE LEAD INTELLIGENCE SECTION
+          ═══════════════════════════════════════════════════════════ */}
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        {/* Section Header */}
+        <div className="p-5 border-b border-border bg-gradient-to-r from-indigo-500/5 via-transparent to-purple-500/5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-indigo-500" />
+                Query-wise Lead Intelligence
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {queryStats.length} queries • {totalQueryLeads.toLocaleString()} unique leads • {totalDupsBlocked.toLocaleString()} duplicates blocked
+              </p>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search queries..."
+                value={querySearch}
+                onChange={(e) => setQuerySearch(e.target.value)}
+                className="w-full sm:w-64 rounded-lg border border-border bg-background pl-9 pr-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Table Header */}
+        <div className="hidden md:grid grid-cols-12 gap-2 px-5 py-2.5 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/30">
+          <div className="col-span-3">Query / Job Name</div>
+          <div className="col-span-1 text-center">Status</div>
+          <div className="col-span-1 text-center">Unique Leads</div>
+          <div className="col-span-1 text-center">
+            <Mail className="h-3 w-3 mx-auto" />
+          </div>
+          <div className="col-span-1 text-center">
+            <Phone className="h-3 w-3 mx-auto" />
+          </div>
+          <div className="col-span-1 text-center">
+            <Globe className="h-3 w-3 mx-auto" />
+          </div>
+          <div className="col-span-1 text-center">
+            <Ban className="h-3 w-3 mx-auto" />
+          </div>
+          <div className="col-span-1 text-center">Verified</div>
+          <div className="col-span-2 text-right">Actions</div>
+        </div>
+
+        {/* Table Body */}
+        {filteredQueryStats.length === 0 ? (
+          <div className="px-5 py-12 text-center">
+            <Briefcase className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">
+              {querySearch ? 'No matching queries found' : 'No scrape jobs yet. Create your first job!'}
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {filteredQueryStats.map((q) => {
+              const cfg = statusConfig[q.status] || statusConfig.pending;
+              const StatusIcon = cfg.icon;
+              const isExpanded = expandedJob === q.id;
+
+              return (
+                <div key={q.id} className="group hover:bg-muted/20 transition-colors">
+                  {/* Main Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-2 px-5 py-3 items-center">
+                    {/* Name + query */}
+                    <div className="col-span-3 min-w-0">
+                      <p className="text-sm font-semibold truncate">{q.name}</p>
+                      <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                        {q.search_query || q.target_url.substring(0, 60)}
+                      </p>
+                    </div>
+
+                    {/* Status */}
+                    <div className="col-span-1 flex justify-center">
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border ${cfg.badgeBg} ${cfg.color}`}>
+                        <StatusIcon className="h-2.5 w-2.5" />
+                        {cfg.label}
+                      </span>
+                    </div>
+
+                    {/* Unique Leads */}
+                    <div className="col-span-1 text-center">
+                      <span className="text-sm font-bold text-indigo-400">{q.unique_leads.toLocaleString()}</span>
+                    </div>
+
+                    {/* Emails */}
+                    <div className="col-span-1 text-center">
+                      <span className={`text-sm font-semibold ${q.emails_count > 0 ? 'text-emerald-400' : 'text-muted-foreground/40'}`}>
+                        {q.emails_count.toLocaleString()}
+                      </span>
+                    </div>
+
+                    {/* Phones */}
+                    <div className="col-span-1 text-center">
+                      <span className={`text-sm font-semibold ${q.phones_count > 0 ? 'text-cyan-400' : 'text-muted-foreground/40'}`}>
+                        {q.phones_count.toLocaleString()}
+                      </span>
+                    </div>
+
+                    {/* Websites */}
+                    <div className="col-span-1 text-center">
+                      <span className={`text-sm font-semibold ${q.websites_count > 0 ? 'text-blue-400' : 'text-muted-foreground/40'}`}>
+                        {q.websites_count.toLocaleString()}
+                      </span>
+                    </div>
+
+                    {/* Duplicates Blocked */}
+                    <div className="col-span-1 text-center">
+                      <span className={`text-sm font-semibold ${q.duplicates_blocked > 0 ? 'text-amber-400' : 'text-muted-foreground/40'}`}>
+                        {q.duplicates_blocked.toLocaleString()}
+                      </span>
+                    </div>
+
+                    {/* Verified */}
+                    <div className="col-span-1 text-center">
+                      <span className="text-sm font-semibold text-emerald-500">{q.total_verified.toLocaleString()}</span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="col-span-2 flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={() => handleExportJob(q.id, q.name)}
+                        disabled={exportingJob === q.id || q.unique_leads === 0}
+                        className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="Export leads for this query as CSV"
+                      >
+                        {exportingJob === q.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <FileDown className="h-3 w-3" />
+                        )}
+                        Export
+                      </button>
+                      <button
+                        onClick={() => setExpandedJob(isExpanded ? null : q.id)}
+                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted transition-colors"
+                        title="Show details"
+                      >
+                        {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Expanded Details */}
+                  {isExpanded && (
+                    <div className="px-5 pb-4 animate-fade-in">
+                      <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                          {/* Email count */}
+                          <div className="flex items-center gap-2.5 rounded-lg bg-card border border-border p-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
+                              <Mail className="h-4 w-4 text-emerald-500" />
+                            </div>
+                            <div>
+                              <p className="text-base font-bold">{q.emails_count}</p>
+                              <p className="text-[10px] text-muted-foreground">Emails</p>
+                            </div>
+                          </div>
+
+                          {/* Phone count */}
+                          <div className="flex items-center gap-2.5 rounded-lg bg-card border border-border p-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/10">
+                              <Phone className="h-4 w-4 text-cyan-500" />
+                            </div>
+                            <div>
+                              <p className="text-base font-bold">{q.phones_count}</p>
+                              <p className="text-[10px] text-muted-foreground">Phones</p>
+                            </div>
+                          </div>
+
+                          {/* Website count */}
+                          <div className="flex items-center gap-2.5 rounded-lg bg-card border border-border p-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10">
+                              <Globe className="h-4 w-4 text-blue-500" />
+                            </div>
+                            <div>
+                              <p className="text-base font-bold">{q.websites_count}</p>
+                              <p className="text-[10px] text-muted-foreground">Websites</p>
+                            </div>
+                          </div>
+
+                          {/* LinkedIn count */}
+                          <div className="flex items-center gap-2.5 rounded-lg bg-card border border-border p-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10">
+                              <LinkedinIcon className="h-4 w-4 text-sky-500" />
+                            </div>
+                            <div>
+                              <p className="text-base font-bold">{q.linkedin_count}</p>
+                              <p className="text-[10px] text-muted-foreground">LinkedIn</p>
+                            </div>
+                          </div>
+
+                          {/* Facebook count */}
+                          <div className="flex items-center gap-2.5 rounded-lg bg-card border border-border p-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600/10">
+                              <FacebookIcon className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="text-base font-bold">{q.facebook_count}</p>
+                              <p className="text-[10px] text-muted-foreground">Facebook</p>
+                            </div>
+                          </div>
+
+                          {/* WhatsApp count */}
+                          <div className="flex items-center gap-2.5 rounded-lg bg-card border border-border p-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10">
+                              <MessageCircle className="h-4 w-4 text-green-500" />
+                            </div>
+                            <div>
+                              <p className="text-base font-bold">{q.whatsapp_count}</p>
+                              <p className="text-[10px] text-muted-foreground">WhatsApp</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Bottom row: metadata + unique constraint info */}
+                        <div className="mt-3 flex flex-wrap items-center gap-4 text-[10px] text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {new Date(q.created_at).toLocaleString()}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            Total Found: <span className="font-semibold text-foreground">{q.total_found.toLocaleString()}</span>
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <ShieldCheck className="h-3 w-3 text-emerald-500" />
+                            Unique (after dedup): <span className="font-semibold text-emerald-400">{q.unique_leads.toLocaleString()}</span>
+                          </span>
+                          {q.duplicates_blocked > 0 && (
+                            <span className="flex items-center gap-1">
+                              <ShieldAlert className="h-3 w-3 text-amber-500" />
+                              Duplicates Blocked: <span className="font-semibold text-amber-400">{q.duplicates_blocked.toLocaleString()}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Recent Activity */}

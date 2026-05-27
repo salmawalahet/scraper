@@ -12,5 +12,8 @@ router.get('/jobs', (req, res) => analyticsController.getJobAnalytics(req, res))
 router.get('/exports', (req, res) => analyticsController.getExportAnalytics(req, res));
 router.get('/quality', (req, res) => analyticsController.getQualityDistribution(req, res));
 router.get('/activity', (req, res) => analyticsController.getRecentActivity(req, res));
+router.get('/query-wise', (req, res) => analyticsController.getQueryWiseStats(req, res));
+router.get('/query-wise/:jobId/export', (req, res) => analyticsController.exportQueryWise(req, res));
 
 export default router;
+

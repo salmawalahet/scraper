@@ -12,27 +12,34 @@ export class ExportController {
   async create(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.user!.userId;
-      const { format, filters, leadIds } = req.body;
+      const { format, filters, leadIds, jobId } = req.body;
+
+      // Build effective filters — if jobId is provided, scope to that job
+      const effectiveFilters = { ...filters };
+      if (jobId) {
+        effectiveFilters.jobId = jobId;
+      }
 
       // Get count of leads to export
       let totalRecords = 0;
       if (leadIds && leadIds.length > 0) {
         totalRecords = leadIds.length;
-      } else if (filters) {
-        const result = await companyService.search({ ...filters, page: 1, limit: 1 });
+      } else {
+        const result = await companyService.search({ ...effectiveFilters, page: 1, limit: 1 });
         totalRecords = result.total;
       }
 
-      // Create export record
+      // Create export record (with job_id so we can show the query name)
       const exportId = await exportService.create({
         userId,
+        jobId: jobId || null,
         format: format as ExportFormat,
         totalRecords,
-        filters,
+        filters: effectiveFilters,
       });
 
       // Add to export queue
-      await queueService.addExportJob(exportId, userId, { format, filters, leadIds });
+      await queueService.addExportJob(exportId, userId, { format, filters: effectiveFilters, leadIds });
 
       await activityService.log({
         userId, action: ActivityAction.EXPORT_CREATED,
