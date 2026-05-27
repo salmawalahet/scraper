@@ -14,11 +14,7 @@ export class ExportController {
       const userId = req.user!.userId;
       const { format, filters, leadIds, jobId } = req.body;
 
-<<<<<<< HEAD
-      // Scope filters to job_id if jobId is provided
-=======
       // Build effective filters — if jobId is provided, scope to that job
->>>>>>> main
       const effectiveFilters = { ...filters };
       if (jobId) {
         effectiveFilters.jobId = jobId;

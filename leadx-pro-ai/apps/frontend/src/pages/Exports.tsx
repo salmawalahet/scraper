@@ -288,15 +288,9 @@ export default function Exports() {
                     <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted border border-border">
                       {getFormatIcon(item.format)}
                     </div>
-<<<<<<< HEAD
                     <div className="min-w-0">
-                      <h3 className="text-sm font-semibold truncate max-w-[170px]" title={`${getExportName(item)} #${item.id}`}>
+                      <h3 className="text-sm font-semibold truncate max-w-[180px]" title={`${getExportName(item)} #${item.id}`}>
                         {getExportName(item)} #{item.id}
-=======
-                    <div>
-                      <h3 className="text-sm font-semibold truncate max-w-[180px]">
-                        {item.job_name || `All Leads Export #${item.id}`}
->>>>>>> main
                       </h3>
                       <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-0.5">
                         {item.format} File
@@ -306,15 +300,6 @@ export default function Exports() {
                   {getStatusBadge(item.status)}
                 </div>
 
-<<<<<<< HEAD
-                {item.search_query && (
-                  <div className="mt-2.5 rounded-lg bg-indigo-500/5 border border-indigo-500/10 px-2.5 py-1.5 text-xs text-indigo-400 truncate">
-                    <span className="font-semibold text-indigo-300">Query: </span>{item.search_query}
-                  </div>
-                )}
-
-                <div className="mt-4 grid grid-cols-2 gap-2 text-xs border-t border-b border-border/50 py-3 my-3">
-=======
                 {/* Search query info */}
                 {item.search_query && (
                   <div className="mt-2 flex items-center gap-1.5 rounded-md bg-indigo-500/5 border border-indigo-500/10 px-2.5 py-1.5">
@@ -324,7 +309,6 @@ export default function Exports() {
                 )}
 
                 <div className="mt-3 grid grid-cols-2 gap-2 text-xs border-t border-b border-border/50 py-3 my-3">
->>>>>>> main
                   <div>
                     <span className="text-muted-foreground block">Leads Count</span>
                     <span className="font-semibold text-sm">{item.total_records.toLocaleString()}</span>

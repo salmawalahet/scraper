@@ -3,13 +3,8 @@ import { analyticsApi } from '../services/api';
 import {
   Users, Mail, Briefcase, CheckCircle2, Download, TrendingUp,
   Activity, ArrowUpRight, ArrowDownRight, Loader2, Search,
-<<<<<<< HEAD
-  Phone, Globe, Clock, Play, FileDown, AlertCircle, XCircle, RotateCcw
-=======
-  Phone, Globe, MessageCircle, ShieldCheck,
-  ShieldAlert, Play, Clock, AlertCircle, XCircle, RotateCcw,
-  ChevronDown, ChevronUp, FileDown, Ban,
->>>>>>> main
+  Phone, Globe, Clock, Play, FileDown, AlertCircle, XCircle, RotateCcw,
+  MessageCircle, ShieldCheck, ShieldAlert, ChevronDown, ChevronUp, Ban
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -57,26 +52,17 @@ interface QueryWiseStat {
   created_at: string;
   total_found: number;
   total_verified: number;
-<<<<<<< HEAD
-=======
   unique_leads: number;
->>>>>>> main
   emails_count: number;
   phones_count: number;
   websites_count: number;
   linkedin_count: number;
   facebook_count: number;
   whatsapp_count: number;
-<<<<<<< HEAD
-}
-
-const statusConfig: Record<string, { color: string; icon: any; label: string; badgeBg: string }> = {
-=======
   duplicates_blocked: number;
 }
 
 const statusConfig: Record<string, { color: string; icon: typeof CheckCircle2; label: string; badgeBg: string }> = {
->>>>>>> main
   pending:   { color: 'text-slate-400',   icon: Clock,        label: 'Pending',   badgeBg: 'bg-slate-400/10 border-slate-400/20' },
   running:   { color: 'text-blue-400',    icon: Play,         label: 'Running',   badgeBg: 'bg-blue-400/10 border-blue-400/20' },
   paused:    { color: 'text-amber-400',   icon: Clock,        label: 'Paused',    badgeBg: 'bg-amber-400/10 border-amber-400/20' },
@@ -93,11 +79,8 @@ export default function Dashboard() {
   const [queryStats, setQueryStats] = useState<QueryWiseStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [querySearch, setQuerySearch] = useState('');
-<<<<<<< HEAD
   const [currentPage, setCurrentPage] = useState(1);
-=======
   const [expandedJob, setExpandedJob] = useState<number | null>(null);
->>>>>>> main
   const [exportingJob, setExportingJob] = useState<number | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -152,27 +135,6 @@ export default function Dashboard() {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
   }, [loadData]);
-
-  const handleExportJob = async (jobId: number, jobName: string) => {
-    try {
-      setExportingJob(jobId);
-      const res = await analyticsApi.exportQueryWise(jobId);
-      // Trigger browser download
-      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${jobName.replace(/[^a-zA-Z0-9]/g, '_')}_leads.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Export failed:', error);
-    } finally {
-      setExportingJob(null);
-    }
-  };
 
   if (loading) {
     return (
@@ -303,148 +265,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-<<<<<<< HEAD
-      {/* Query-wise Lead Scrapes & Exports */}
-      <div className="rounded-xl border border-border bg-card p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 border-b border-border/50 pb-4">
-          <div>
-            <h3 className="text-sm font-semibold flex items-center gap-2">
-              <Briefcase className="h-4 w-4 text-indigo-500" />
-              Query-wise Lead Scrapes
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Export leads and view progress per individual search query</p>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search queries..."
-              value={querySearch}
-              onChange={(e) => {
-                setQuerySearch(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full sm:w-60 rounded-lg border border-border bg-background pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-            />
-          </div>
-        </div>
-
-        {queryStats.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">No scrape queries recorded yet</p>
-        ) : (() => {
-          const filtered = queryStats.filter((q) => {
-            if (!querySearch) return true;
-            const term = querySearch.toLowerCase();
-            return q.name.toLowerCase().includes(term) || (q.search_query && q.search_query.toLowerCase().includes(term));
-          });
-          const totalPages = Math.ceil(filtered.length / 5);
-          const startIndex = (currentPage - 1) * 5;
-          const paginated = filtered.slice(startIndex, startIndex + 5);
-
-          return (
-            <div className="space-y-4">
-              <div className="space-y-3">
-                {paginated.map((q) => {
-                  const cfg = statusConfig[q.status] || statusConfig.pending;
-                  const StatusIcon = cfg.icon;
-
-                  return (
-                    <div
-                      key={q.id}
-                      className="flex flex-col md:flex-row md:items-center justify-between rounded-xl border border-border bg-card p-4 transition-all duration-300 hover:shadow-md hover:border-primary/20 gap-4"
-                    >
-                      {/* Left: Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <h4 className="text-sm sm:text-base font-bold text-foreground truncate">{q.name}</h4>
-                          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold border shrink-0 ${cfg.badgeBg} ${cfg.color}`}>
-                            <StatusIcon className="h-3 w-3" />
-                            {cfg.label}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate mt-1.5" title={q.search_query || q.target_url}>
-                          {q.search_query || q.target_url}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">
-                          Scraped on {new Date(q.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-
-                      {/* Middle: Stats */}
-                      <div className="flex items-center gap-6 flex-wrap md:flex-nowrap md:px-6">
-                        <div className="text-left md:text-center min-w-[70px]">
-                          <span className="text-[10px] text-muted-foreground block font-bold uppercase tracking-wider">Leads</span>
-                          <span className="text-sm sm:text-base font-extrabold text-foreground">{q.total_found.toLocaleString()}</span>
-                        </div>
-                        <div className="text-left md:text-center min-w-[80px]">
-                          <span className="text-[10px] text-muted-foreground block font-bold uppercase tracking-wider">Verified</span>
-                          <span className="text-sm sm:text-base font-extrabold text-emerald-500">{q.total_verified.toLocaleString()}</span>
-                        </div>
-                        <div className="text-left md:text-center min-w-[80px]">
-                          <span className="text-[10px] text-muted-foreground block font-bold uppercase tracking-wider">Emails</span>
-                          <span className="text-sm sm:text-base font-extrabold text-indigo-400">{q.emails_count.toLocaleString()}</span>
-                        </div>
-                        <div className="text-left md:text-center min-w-[80px]">
-                          <span className="text-[10px] text-muted-foreground block font-bold uppercase tracking-wider">Websites</span>
-                          <span className="text-sm sm:text-base font-extrabold text-blue-500">{q.websites_count.toLocaleString()}</span>
-                        </div>
-                      </div>
-
-                      {/* Right: Export action */}
-                      <div className="shrink-0 flex items-center">
-                        <button
-                          onClick={() => handleExportJob(q.id, q.name)}
-                          disabled={exportingJob === q.id || q.total_found === 0}
-                          className="w-full md:w-auto flex items-center justify-center gap-2 rounded-lg bg-primary hover:bg-primary/95 text-xs font-bold text-primary-foreground px-4 py-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-                        >
-                          {exportingJob === q.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <FileDown className="h-4 w-4" />
-                          )}
-                          Export Query CSV
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Pagination controls */}
-              {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t border-border/60">
-                  <span className="text-xs text-muted-foreground font-medium">
-                    Showing <span className="text-foreground font-semibold">{startIndex + 1}</span> to{' '}
-                    <span className="text-foreground font-semibold">
-                      {Math.min(startIndex + 5, filtered.length)}
-                    </span>{' '}
-                    of <span className="text-foreground font-semibold">{filtered.length}</span> queries
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1}
-                      className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-xs font-semibold hover:bg-muted disabled:opacity-40 disabled:hover:bg-card transition-all"
-                    >
-                      Previous
-                    </button>
-                    <span className="flex items-center px-3 text-xs text-muted-foreground font-semibold">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
-                      className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-xs font-semibold hover:bg-muted disabled:opacity-40 disabled:hover:bg-card transition-all"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })()}
-=======
       {/* ═══════════════════════════════════════════════════════════
           QUERY-WISE LEAD INTELLIGENCE SECTION
           ═══════════════════════════════════════════════════════════ */}
@@ -694,7 +514,6 @@ export default function Dashboard() {
             })}
           </div>
         )}
->>>>>>> main
       </div>
 
       {/* Recent Activity */}
