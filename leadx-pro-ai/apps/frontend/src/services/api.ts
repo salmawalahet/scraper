@@ -126,6 +126,8 @@ export const jobsApi = {
   retry: (id: number) => api.post(`/jobs/${id}/retry`),
   delete: (id: number) => api.delete(`/jobs/${id}`),
   getStats: () => api.get('/jobs/stats'),
+  updateSchedule: (id: number, data: { cron?: string; tz?: string; enabled?: boolean }) =>
+    api.patch(`/jobs/${id}/schedule`, data),
 };
 
 // Leads

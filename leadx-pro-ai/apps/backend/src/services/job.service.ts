@@ -138,6 +138,49 @@ export class JobService {
   }
 
   /**
+   * Get all scheduled jobs
+   */
+  async getScheduledJobs(): Promise<IScrapeJob[]> {
+    const [rows] = await db.query<JobRow[]>(
+      `SELECT * FROM scrape_jobs WHERE is_scheduled = TRUE AND schedule_enabled = TRUE AND deleted_at IS NULL`
+    );
+    return rows.map((r) => this.parseJobRow(r));
+  }
+
+  /**
+   * Update job schedule
+   */
+  async updateSchedule(
+    jobId: number,
+    updates: {
+      is_scheduled?: boolean;
+      schedule_cron?: string | null;
+      schedule_tz?: string;
+      next_run_at?: Date | null;
+      last_run_at?: Date | null;
+      schedule_enabled?: boolean;
+    }
+  ): Promise<void> {
+    const fields: string[] = [];
+    const params: unknown[] = [];
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        fields.push(`${key} = ?`);
+        params.push(value);
+      }
+    }
+
+    if (fields.length === 0) return;
+
+    params.push(jobId);
+    await db.execute(
+      `UPDATE scrape_jobs SET ${fields.join(', ')} WHERE id = ?`,
+      params
+    );
+  }
+
+  /**
    * Soft delete a job
    */
   async softDelete(jobId: number): Promise<void> {

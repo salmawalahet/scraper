@@ -31,7 +31,7 @@ function FacebookIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 const CHART_COLORS = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#34d399', '#fbbf24', '#f87171', '#60a5fa'];
-const DASHBOARD_POLL_INTERVAL_MS = 10000;
+const DASHBOARD_POLL_INTERVAL_MS = 120000; // 2 minutes
 
 interface DashboardStats {
   totalLeads: number;
@@ -63,13 +63,13 @@ interface QueryWiseStat {
 }
 
 const statusConfig: Record<string, { color: string; icon: typeof CheckCircle2; label: string; badgeBg: string }> = {
-  pending:   { color: 'text-slate-400',   icon: Clock,        label: 'Pending',   badgeBg: 'bg-slate-400/10 border-slate-400/20' },
-  running:   { color: 'text-blue-400',    icon: Play,         label: 'Running',   badgeBg: 'bg-blue-400/10 border-blue-400/20' },
-  paused:    { color: 'text-amber-400',   icon: Clock,        label: 'Paused',    badgeBg: 'bg-amber-400/10 border-amber-400/20' },
+  pending: { color: 'text-slate-400', icon: Clock, label: 'Pending', badgeBg: 'bg-slate-400/10 border-slate-400/20' },
+  running: { color: 'text-blue-400', icon: Play, label: 'Running', badgeBg: 'bg-blue-400/10 border-blue-400/20' },
+  paused: { color: 'text-amber-400', icon: Clock, label: 'Paused', badgeBg: 'bg-amber-400/10 border-amber-400/20' },
   completed: { color: 'text-emerald-400', icon: CheckCircle2, label: 'Completed', badgeBg: 'bg-emerald-400/10 border-emerald-400/20' },
-  failed:    { color: 'text-red-400',     icon: AlertCircle,  label: 'Failed',    badgeBg: 'bg-red-400/10 border-red-400/20' },
-  cancelled: { color: 'text-slate-500',   icon: XCircle,      label: 'Cancelled', badgeBg: 'bg-slate-500/10 border-slate-500/20' },
-  retrying:  { color: 'text-purple-400',  icon: RotateCcw,    label: 'Retrying',  badgeBg: 'bg-purple-400/10 border-purple-400/20' },
+  failed: { color: 'text-red-400', icon: AlertCircle, label: 'Failed', badgeBg: 'bg-red-400/10 border-red-400/20' },
+  cancelled: { color: 'text-slate-500', icon: XCircle, label: 'Cancelled', badgeBg: 'bg-slate-500/10 border-slate-500/20' },
+  retrying: { color: 'text-purple-400', icon: RotateCcw, label: 'Retrying', badgeBg: 'bg-purple-400/10 border-purple-400/20' },
 };
 
 export default function Dashboard() {
@@ -201,9 +201,9 @@ export default function Dashboard() {
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Lead trends chart */}
-        <div className="lg:col-span-2 rounded-xl border border-border bg-card p-5">
+        <div className="lg:col-span-2 rounded-xl border border-border bg-card p-5 min-w-0">
           <h3 className="text-sm font-semibold mb-4">Lead Trends (30 days)</h3>
-          <div className="h-72">
+          <div className="h-72 w-full min-w-0 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trends}>
                 <defs>
@@ -228,9 +228,9 @@ export default function Dashboard() {
         </div>
 
         {/* Category pie chart */}
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card p-5 min-w-0">
           <h3 className="text-sm font-semibold mb-4">Top Categories</h3>
-          <div className="h-72">
+          <div className="h-72 w-full min-w-0 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie

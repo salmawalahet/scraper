@@ -47,6 +47,7 @@ export enum ActivityAction {
   USER_LOGOUT = 'user_logout',
   USER_REGISTER = 'user_register',
   JOB_CREATED = 'job_created',
+  JOB_UPDATED = 'job_updated',
   JOB_STARTED = 'job_started',
   JOB_PAUSED = 'job_paused',
   JOB_RESUMED = 'job_resumed',

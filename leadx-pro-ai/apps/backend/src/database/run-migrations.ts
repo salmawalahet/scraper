@@ -34,12 +34,20 @@ async function runMigrations() {
         const filePath = path.join(migrationsDir, file);
         const sql = fs.readFileSync(filePath, 'utf-8');
 
-        console.log(`🔄 Running migration: ${file}...`);
-        await connection.query(sql);
-        console.log(`✅ Migration ${file} applied successfully`);
+        try {
+          console.log(`🔄 Running migration: ${file}...`);
+          await connection.query(sql);
+          console.log(`✅ Migration ${file} applied successfully`);
+        } catch (err: any) {
+          if (err.code === 'ER_DUP_FIELDNAME' || err.code === 'ER_DUP_KEYNAME') {
+            console.log(`⚠️ Migration ${file} skipped (already applied)`);
+          } else {
+            throw err;
+          }
+        }
       }
 
-      console.log(`✅ All ${migrationFiles.length} migration(s) applied`);
+      console.log(`✅ All ${migrationFiles.length} migration(s) applied or skipped`);
     }
   } catch (error) {
     console.error('❌ Migration failed:', error);

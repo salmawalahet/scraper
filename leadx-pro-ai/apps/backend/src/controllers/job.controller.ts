@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { jobService } from '../services/job.service';
 import { queueService } from '../queues/queue.service';
 import { activityService } from '../services/activity.service';
+import { jobScheduler } from '../services/scheduler/jobScheduler';
 import { JobStatus, ActivityAction, EntityType, HTTP_STATUS } from '@leadx/shared';
 import { logger } from '../utils/logger';
 
@@ -130,9 +131,78 @@ export class JobController {
     }
   }
 
+  async updateSchedule(req: Request, res: Response): Promise<void> {
+    try {
+      const jobId = parseInt(req.params.id);
+      const { cron, tz, enabled } = req.body;
+      
+      const job = await jobService.findById(jobId);
+      if (!job) {
+        res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Job not found' });
+        return;
+      }
+
+      const updates: any = {
+        is_scheduled: enabled || !!cron,
+        schedule_enabled: enabled !== false,
+      };
+
+      if (cron) updates.schedule_cron = cron;
+      if (tz) updates.schedule_tz = tz;
+
+      await jobService.updateSchedule(jobId, updates);
+      
+      // Get updated job to pass to scheduler
+      const updatedJob = await jobService.findById(jobId);
+      if (updatedJob) {
+        if (updatedJob.is_scheduled && updatedJob.schedule_enabled) {
+          jobScheduler.registerJob(updatedJob);
+        } else {
+          jobScheduler.unregisterJob(updatedJob.id);
+        }
+      }
+
+      await activityService.log({
+        userId: req.user!.userId, action: ActivityAction.JOB_UPDATED,
+        entityType: EntityType.JOB, entityId: jobId, ipAddress: req.ip,
+      });
+
+      res.json({ success: true, message: 'Schedule updated' });
+    } catch (error) {
+      logger.error('Update schedule failed', { error });
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, error: 'Failed to update schedule' });
+    }
+  }
+
+  async getSchedule(req: Request, res: Response): Promise<void> {
+    try {
+      const job = await jobService.findById(parseInt(req.params.id));
+      if (!job) {
+        res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, error: 'Job not found' });
+        return;
+      }
+      res.json({
+        success: true,
+        data: {
+          is_scheduled: job.is_scheduled,
+          schedule_cron: job.schedule_cron,
+          schedule_tz: job.schedule_tz,
+          next_run_at: job.next_run_at,
+          last_run_at: job.last_run_at,
+          schedule_enabled: job.schedule_enabled,
+        }
+      });
+    } catch (error) {
+      logger.error('Get schedule failed', { error });
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, error: 'Failed to get schedule' });
+    }
+  }
+
   async delete(req: Request, res: Response): Promise<void> {
     try {
-      await jobService.softDelete(parseInt(req.params.id));
+      const jobId = parseInt(req.params.id);
+      await jobService.softDelete(jobId);
+      jobScheduler.unregisterJob(jobId);
       res.json({ success: true, message: 'Job deleted' });
     } catch (error) {
       logger.error('Delete job failed', { error });

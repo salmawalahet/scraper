@@ -5,6 +5,7 @@ import { socketService } from './config/socket';
 import { createScrapeWorker } from './workers/scrape.worker';
 import { createExportWorker } from './workers/export.worker';
 import { createAiEnrichmentWorker } from './workers/ai-enrichment.worker';
+import { jobScheduler } from './services/scheduler/jobScheduler';
 import { logger } from './utils/logger';
 
 const server = http.createServer(app);
@@ -25,6 +26,9 @@ server.listen(env.PORT, () => {
   logger.info(`📡 Environment: ${env.NODE_ENV}`);
   logger.info(`🔌 Socket.IO: enabled`);
   logger.info(`⚙️  Workers: scrape + export + ai-enrichment active`);
+  
+  // Start the job scheduler
+  jobScheduler.startScheduler();
 });
 
 // Graceful shutdown
@@ -35,10 +39,11 @@ const gracefulShutdown = async (signal: string) => {
     logger.info('HTTP server closed');
 
     try {
+      jobScheduler.stopScheduler();
       await scrapeWorker.close();
       await exportWorker.close();
       await aiEnrichmentWorker.close();
-      logger.info('Workers closed');
+      logger.info('Workers and scheduler closed');
     } catch (error) {
       logger.error('Error closing workers', { error });
     }

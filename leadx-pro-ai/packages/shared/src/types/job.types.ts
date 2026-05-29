@@ -25,6 +25,7 @@ export interface IJobConfig {
   extractAddress: boolean;
   respectRobotsTxt: boolean;
   proxyEnabled: boolean;
+  run_once?: boolean;
 }
 
 export interface IScrapeJob {
@@ -39,6 +40,12 @@ export interface IScrapeJob {
   config: IJobConfig;
   started_at: Date | null;
   completed_at: Date | null;
+  is_scheduled?: boolean;
+  schedule_cron?: string | null;
+  schedule_tz?: string;
+  next_run_at?: Date | null;
+  last_run_at?: Date | null;
+  schedule_enabled?: boolean;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;

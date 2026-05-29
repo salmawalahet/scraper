@@ -15,6 +15,8 @@ router.post('/:id/pause', (req, res) => jobController.pause(req, res));
 router.post('/:id/resume', (req, res) => jobController.resume(req, res));
 router.post('/:id/cancel', (req, res) => jobController.cancel(req, res));
 router.post('/:id/retry', (req, res) => jobController.retry(req, res));
+router.patch('/:id/schedule', (req, res) => jobController.updateSchedule(req, res));
+router.get('/:id/schedule', (req, res) => jobController.getSchedule(req, res));
 router.delete('/:id', (req, res) => jobController.delete(req, res));
 
 export default router;
