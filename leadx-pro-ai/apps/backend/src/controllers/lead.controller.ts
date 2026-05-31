@@ -5,6 +5,7 @@ import { queueService } from '../queues/queue.service';
 import { isAIEnabled } from '../services/ai/aiClient';
 import { ActivityAction, EntityType, HTTP_STATUS, ILeadFilters } from '@leadx/shared';
 import { logger } from '../utils/logger';
+import { invalidateCache } from '../utils/cache';
 
 export class LeadController {
   async search(req: Request, res: Response): Promise<void> {
@@ -86,6 +87,11 @@ export class LeadController {
           res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'Invalid action' });
           return;
       }
+
+      // Invalidate caches after mutation
+      const userId = req.user!.userId;
+      await invalidateCache(`leads:metadata:${userId}`);
+      await invalidateCache(`dashboard:stats:${userId}`);
 
       res.json({ success: true, message: `Bulk ${action} completed for ${ids.length} leads` });
     } catch (error) {

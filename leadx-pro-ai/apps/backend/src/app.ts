@@ -14,6 +14,8 @@ import jobRoutes from './routes/job.routes';
 import leadRoutes from './routes/lead.routes';
 import exportRoutes from './routes/export.routes';
 import analyticsRoutes from './routes/analytics.routes';
+import webhooksRoutes from './routes/webhooks.routes';
+import crmRoutes from './routes/crm.routes';
 import { db } from './database/pool';
 import { getCacheRedis } from './config/redis';
 
@@ -86,6 +88,8 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/exports', exportRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/webhooks', webhooksRoutes);
+app.use('/api/crm', crmRoutes);
 
 // ============================================
 // 404 Handler

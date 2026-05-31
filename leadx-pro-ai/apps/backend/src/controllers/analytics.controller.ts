@@ -4,11 +4,27 @@ import { activityService } from '../services/activity.service';
 import { companyService } from '../services/company.service';
 import { HTTP_STATUS } from '@leadx/shared';
 import { logger } from '../utils/logger';
+import { getCache, setCache } from '../utils/cache';
 
 export class AnalyticsController {
   async getDashboard(req: Request, res: Response): Promise<void> {
     try {
-      const stats = await analyticsService.getDashboardStats(req.user!.userId);
+      const userId = req.user!.userId;
+      const cacheKey = `dashboard:stats:${userId}`;
+
+      // Check dedicated API-level cache first
+      const cached = await getCache<any>(cacheKey);
+      if (cached) {
+        res.setHeader('X-Cache', 'HIT');
+        res.json({ success: true, data: cached });
+        return;
+      }
+
+      const stats = await analyticsService.getDashboardStats(userId);
+
+      // Store in API-level cache (60s TTL)
+      await setCache(cacheKey, stats, 60);
+      res.setHeader('X-Cache', 'MISS');
       res.json({ success: true, data: stats });
     } catch (error) {
       logger.error('Get dashboard failed', { error });

@@ -3,8 +3,9 @@ import { useAuthStore } from '../stores/auth.store';
 import { useThemeStore } from '../stores/theme.store';
 import {
   User, Shield, Key, Sliders, Globe, RefreshCw,
-  CheckCircle2, AlertCircle, Loader2, Sparkles, Server
+  CheckCircle2, AlertCircle, Loader2, Sparkles, Server, Trash2
 } from 'lucide-react';
+import { webhooksApi, crmApi } from '../services/api';
 
 export default function Settings() {
   const { user } = useAuthStore();
@@ -34,6 +35,20 @@ export default function Settings() {
   const [hubspotKey, setHubspotKey] = useState('');
   const [savingIntegrations, setSavingIntegrations] = useState(false);
   const [integrationsSuccess, setIntegrationsSuccess] = useState(false);
+  const [integrationError, setIntegrationError] = useState('');
+  const [activeWebhookId, setActiveWebhookId] = useState<number | null>(null);
+
+  // Fetch existing integrations on load
+  useState(() => {
+    webhooksApi.list().then((res) => {
+      const endpoints = res.data.data;
+      if (endpoints && endpoints.length > 0) {
+        setWebhookUrl(endpoints[0].url);
+        setActiveWebhookId(endpoints[0].id);
+      }
+    }).catch(console.error);
+    // Note: We don't have a GET endpoint for CRM keys for security reasons, so it stays blank
+  });
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,11 +87,32 @@ export default function Settings() {
     try {
       setSavingIntegrations(true);
       setIntegrationsSuccess(false);
-      // Simulate API call for integration keys
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      setIntegrationError('');
+
+      // Save Webhook if changed
+      if (webhookUrl) {
+        // If there's an existing webhook and it's different, we should probably delete the old one or just create new
+        if (activeWebhookId) {
+          await webhooksApi.delete(activeWebhookId);
+        }
+        const res = await webhooksApi.create({ url: webhookUrl });
+        setActiveWebhookId(res.data.data.id);
+      } else if (activeWebhookId) {
+        // If they cleared the field, delete it
+        await webhooksApi.delete(activeWebhookId);
+        setActiveWebhookId(null);
+      }
+
+      // Save HubSpot key if provided
+      if (hubspotKey) {
+        await crmApi.connectHubspot(hubspotKey);
+        setHubspotKey(''); // clear it after saving for security
+      }
+
       setIntegrationsSuccess(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setIntegrationError(err.response?.data?.error || 'Failed to save integrations');
     } finally {
       setSavingIntegrations(false);
     }
@@ -331,6 +367,12 @@ export default function Settings() {
                   <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 p-3 text-xs font-medium text-emerald-500">
                     <CheckCircle2 className="h-4 w-4" />
                     <span>CRM API keys and webhook configurations updated!</span>
+                  </div>
+                )}
+                {integrationError && (
+                  <div className="flex items-center gap-2 rounded-lg bg-red-500/10 p-3 text-xs font-medium text-red-500">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>{integrationError}</span>
                   </div>
                 )}
 

@@ -5,8 +5,9 @@ import {
   Search, Filter, Download, Trash2, ChevronLeft, ChevronRight,
   Mail, Phone, Globe, MapPin, X, ExternalLink,
   CheckCircle2, AlertCircle, Clock, Loader2, Eye,
-  Sparkles, Copy, Check,
+  Sparkles, Copy, Check, Share2,
 } from 'lucide-react';
+import { crmApi } from '../services/api';
 
 function Linkedin(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -64,6 +65,7 @@ export default function Leads() {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [isEnriching, setIsEnriching] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isExportingHubspot, setIsExportingHubspot] = useState(false);
 
   const handleCopyEmail = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -173,6 +175,21 @@ export default function Leads() {
     } catch (e) { console.error(e); }
   };
 
+  const handleHubSpotExport = async () => {
+    if (selectedIds.size === 0) return;
+    try {
+      setIsExportingHubspot(true);
+      await crmApi.exportHubspot(Array.from(selectedIds));
+      alert('Successfully pushed selected leads to HubSpot!');
+      setSelectedIds(new Set());
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.error || 'Failed to export to HubSpot');
+    } finally {
+      setIsExportingHubspot(false);
+    }
+  };
+
   const confidenceColor = (score: number) => {
     if (score >= 90) return 'text-emerald-500';
     if (score >= 70) return 'text-amber-500';
@@ -250,7 +267,15 @@ export default function Leads() {
             <Trash2 className="h-3.5 w-3.5" /> Delete
           </button>
           <button onClick={() => handleExport('csv')} className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors">
-            <Download className="h-3.5 w-3.5" /> Export
+            <Download className="h-3.5 w-3.5" /> Export CSV
+          </button>
+          <button 
+            onClick={handleHubSpotExport} 
+            disabled={isExportingHubspot}
+            className="flex items-center gap-1.5 text-sm text-orange-500 hover:text-orange-600 transition-colors disabled:opacity-50"
+          >
+            {isExportingHubspot ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
+            Push to HubSpot
           </button>
           <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-muted-foreground hover:text-foreground">Clear</button>
         </div>

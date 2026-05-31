@@ -163,3 +163,17 @@ export const analyticsApi = {
   exportQueryWise: (jobId: number) => api.get(`/analytics/query-wise/${jobId}/export`, { responseType: 'blob' }),
 };
 
+// Webhooks
+export const webhooksApi = {
+  list: () => api.get('/webhooks'),
+  create: (data: { url: string; events?: string[] }) => api.post('/webhooks', data),
+  delete: (id: number) => api.delete(`/webhooks/${id}`),
+  getDeliveries: (id: number) => api.get(`/webhooks/${id}/deliveries`),
+};
+
+// CRM
+export const crmApi = {
+  connectHubspot: (accessToken: string) => api.post('/crm/hubspot/connect', { accessToken }),
+  disconnectHubspot: () => api.delete('/crm/hubspot/connect'),
+  exportHubspot: (leadIds: number[]) => api.post('/crm/export/hubspot', { leadIds }),
+};

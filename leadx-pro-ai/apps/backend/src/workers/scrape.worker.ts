@@ -5,6 +5,8 @@ import { jobService } from '../services/job.service';
 import { scraperManager } from '../scrapers/scraper-manager';
 import { socketService } from '../config/socket';
 import { analyticsService } from '../services/analytics.service';
+import { dispatchWebhook } from '../services/webhooks/dispatcher';
+import { invalidateCache } from '../utils/cache';
 import { workerLogger as logger } from '../utils/logger';
 
 export function createScrapeWorker(): Worker {
@@ -42,11 +44,22 @@ export function createScrapeWorker(): Worker {
         // Invalidate analytics cache
         await analyticsService.invalidateCache(userId);
 
+        // Invalidate API-level caches
+        await invalidateCache(`dashboard:stats:${userId}`);
+        await invalidateCache(`leads:metadata:${userId}`);
+
         // Notify via socket
         socketService?.emitToUser(userId, 'job:completed', {
           jobId,
           totalFound: result.totalFound,
           totalVerified: result.totalVerified,
+        });
+
+        // Dispatch webhook
+        dispatchWebhook(userId, 'job.completed', {
+          jobId,
+          leadsCount: result.totalFound,
+          completedAt: new Date().toISOString(),
         });
 
         logger.info(`Scrape job ${jobId} completed`, {
@@ -62,6 +75,13 @@ export function createScrapeWorker(): Worker {
         socketService?.emitToUser(userId, 'job:failed', {
           jobId,
           error: error.message,
+        });
+
+        // Dispatch webhook
+        dispatchWebhook(userId, 'job.failed', {
+          jobId,
+          error: error.message,
+          failedAt: new Date().toISOString(),
         });
 
         throw error;
